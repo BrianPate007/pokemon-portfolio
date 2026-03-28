@@ -72,16 +72,15 @@ export default function ImportPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setError('Not authenticated.'); setImporting(false); return; }
 
-    const payload = rows.map(r => ({ ...r, user_id: user.id }));
+    const res = await fetch('/api/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cards: rows, userId: user.id }),
+    });
+    const json = await res.json();
+    if (!res.ok) { setError(json.error || 'Import failed.'); setImporting(false); return; }
 
-    // Upsert in batches of 500
-    const BATCH = 500;
-    for (let i = 0; i < payload.length; i += BATCH) {
-      const { error } = await supabase.from('cards').upsert(payload.slice(i, i + BATCH));
-      if (error) { setError(error.message); setImporting(false); return; }
-    }
-
-    setDone(rows.length);
+    setDone(json.imported);
     setRows([]);
     setImporting(false);
   }
